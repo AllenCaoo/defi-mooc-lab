@@ -285,28 +285,31 @@ contract LiquidationOperator is IUniswapV2Callee {
         require(msg.sender == address(pair_WETH_USDT), "Wrong sender.");
         (uint256 WETH_reserve1, uint256 USDT_reserve, ) = pair_WETH_USDT.getReserves(); // WETH <=> USDT pool
         (uint256 WBTC_reserve, uint256 WETH_reserve2, ) = pair_WBTC_WETH.getReserves(); // WBTC <=> WETH pool
+        address exchange1 = address(pair_WBTC_WETH);
+        address exchange2 = address(pair_WETH_USDT);
 
         // 2.1 liquidate the target user
         //    *** Your code here ***
         USDT_POOL.approve(address(AAVE_LENDING_POOL), debtCover);
-        AAVE_LENDING_POOL.liquidationCall(address(WBTC_POOL), 
-                                        address(USDT_POOL), 
-                                        address(user), 
-                                        debtCover, 
-                                        false);  // liquidation call
+        AAVE_LENDING_POOL.liquidationCall(
+                                address(WBTC_POOL), 
+                                address(USDT_POOL), 
+                                address(user), 
+                                debtCover, 
+                                false);  // liquidation call
 
         // 2.2 swap WBTC for other things or repay directly
         //    *** Your code here ***
-        uint collat_WBTC = WBTC_POOL.balanceOf(me);
-        WBTC_POOL.transfer(address(pair_WBTC_WETH), collat_WBTC);
-        uint amountOut_WETH = getAmountOut(collat_WBTC, WBTC_reserve, WETH_reserve2);
+        uint WBTC_collat = WBTC_POOL.balanceOf(me);  // intermediate balance = WBTC_collat
+        WBTC_POOL.transfer(exchange1, WBTC_collat);
+        uint amountOut_WETH = getAmountOut(WBTC_collat, WBTC_reserve, WETH_reserve2);
         pair_WBTC_WETH.swap(0, amountOut_WETH, me, "");  // perform 2nd regular swap
 
 
         // 2.3 repay WETH
         //    *** Your code here ***
-        uint repay = getAmountIn(debtCover, WETH_reserve1, USDT_reserve); 
-        WETH_POOL.transfer(address(pair_WETH_USDT), repay);
+        uint WETH_repay = getAmountIn(debtCover, WETH_reserve1, USDT_reserve); 
+        WETH_POOL.transfer(exchange2, WETH_repay);
         
         // END TODO
     }
